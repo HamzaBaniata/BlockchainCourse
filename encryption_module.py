@@ -1,5 +1,7 @@
 import hashlib
 import pathlib
+import time
+
 import rsa
 
 
@@ -64,19 +66,26 @@ def hash_twice(entity):
     return hash_object(hash_object(entity))
 
 
-def get_PoW_proof(block, targeted_hash):
-    print("Mining ... hold on")
+def get_PoW_proof(block, targeted_hash, previous_hash):
+    # print("Mining ... hold on")
     for nonce in range(1, 4000000000):
-        hash_of_block = hash_object([nonce, block['Header']['Timestamp'], block['Header']['previous_hash'], block['Header']['MR']])
-        if pow_block_is_valid(hash_of_block, targeted_hash):
-            block['Header']['Hash'] = hash_of_block
-            block['Header']['proof'] = nonce
+        block['Header']['Hash'] = hash_object([nonce, block['Header']['Timestamp'], block['Header']['previous_hash'], block['Header']['MR']])
+        block['Header']['proof'] = nonce
+        if pow_block_is_valid(block, targeted_hash, previous_hash):
             return block
     return None
 
 
-def pow_block_is_valid(hash_of_block, targeted_hash):
-    return int(hash_of_block, 16) <= int(targeted_hash, 16)
+def pow_block_is_valid(evaluated_block, targeted_hash, previous_hash):
+    # check if the proposed hash fulfill the current puzzle difficulty
+    condition1 = int(evaluated_block['Header']['Hash'], 16) <= int(targeted_hash, 16)
+    # check if the previous hash in the proposed block is indeed the hash of the last accepted block
+    condition2 = evaluated_block['Header']['previous_hash'] == previous_hash
+    # check if the proposed block was generated during the past 2 hours (7200 seconds)
+    condition3 = evaluated_block['Header']['Timestamp'] >= (time.time() - 7200)
+    if condition1 and condition2 and condition3:
+        return True
+    return False
 #
 #
 # def get_PoS_proof(block, staked_crypto):
@@ -95,9 +104,9 @@ def pow_block_is_valid(hash_of_block, targeted_hash):
 #     return block
 
 
-def get_proof(block, consensus, parameter):
+def get_proof(block, consensus, parameter, previous_hash):
     if consensus == 1:
-        return get_PoW_proof(block, parameter)
+        return get_PoW_proof(block, parameter, previous_hash)
     # elif consensus == 2:
     #     return get_PoS_proof(block, parameter)
     # elif consensus == 3:
